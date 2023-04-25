@@ -384,6 +384,7 @@ finalconfig() {
 		"Services" "Set daemons to run on startup" \
 		"System Hardening" "Set security options" \
 		"Time Zone" "Set system timezone" \
+		"Desktop Environment" "Choose your DE ( KDE, Gnome or XFCE )" \
 		"Handbook" "Install $OSNAME Handbook (requires network)" 2>&1 1>&3)
 	exec 3>&-
 
@@ -414,6 +415,10 @@ finalconfig() {
 		;;
 	"Time Zone")
 		bsdinstall time
+		finalconfig
+		;;
+	"Desktop Environment")
+		bsdinstall desktopenvironment
 		finalconfig
 		;;
 	"Handbook")

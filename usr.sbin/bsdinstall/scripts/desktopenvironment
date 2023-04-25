@@ -1,0 +1,167 @@
+#!/bin/sh
+#-
+# Copyright (c) 2023 Maurício Nunes
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading_includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+
+############################################################ CONFIGURATION
+
+############################################################ GLOBALS
+
+: ${BSDDIALOG_CANCEL=1}
+
+#
+# Strings that should be moved to an i18n file and loaded with f_include_lang()
+#
+msg_freebsd_installer="$OSNAME Installer"
+msg_ok="OK"
+msg_please_choose_a_desktopenv="Please choose a desktop environment for this machine.\n"
+msg_choose_desktopenv="Choose a desktop environment"
+
+#
+# Command strings for various tasks
+#
+ECHO_OVERWRITE='echo "%s" > "%s"'
+SET_HOSTNAME='hostname -s "%s"'
+
+############################################################ FUNCTIONS
+
+# dialog_desktopenv
+#
+# Display input box (without cancel button) for user to enter desired hostname.
+#
+dialog_desktopenv()
+{
+	local prompt="$msg_please_choose_a_desktopenv"
+	local hline=
+
+	bsddialog \
+		--title "$DIALOG_TITLE"         \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--hline "$hline"                \
+		--ok-label "$msg_ok"            \
+		--radiolist "$prompt" 10 40 4   \
+		1 "KDE Plasma" off \
+		2 "XFCE" off \
+		3 "Gnome" off 
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+}
+
+############################################################ FUNCTIONS
+
+pkg_basic()
+{
+    pkg install -y xorg
+    pkg update
+}
+
+edit_rc()
+{
+    # a função sysrc é mais indicada para trabalhar com o /etc/rc.conf
+    sysrc webcamd_enable="YES"
+    sysrc moused_enable="YES"
+    sysrc dbus_enable="YES"
+    sysrc hald_enable="YES"
+    sysrc sound_load="YES"
+    sysrc snd_hda_load="YES"
+}
+
+edit_fstab()
+{
+    echo 'proc  /proc   procfs  rw  0   0' >> /etc/fstab
+    mount -al
+}
+
+gnome_install()
+{
+    echo "Starting Gnome4 Installer"
+    pkg_basic
+    pkg install -y gnome gnome-desktop gdm
+    edit_rc
+    edit_fstab
+    sysrc 'gnome_enable="YES"'
+    sysrc 'gdm_enable="YES"'
+}
+
+kde_install()
+{
+    echo "Starting Kde Plasma Installer"
+    pkg_basic
+    pkg install -y x11/kde5 x11/sddm
+    edit_rc
+    edit_fstab
+    sysrc 'sddm_enable="YES"'
+}
+
+xfce_install()
+{
+    echo "Starting Xfce Installer"
+    pkg_basic
+    pkg install -y xfce xfce4-goodies dbus lightdm lightdm-gtk-greeter 
+    edit_rc
+    edit_fstab
+    sysrc lightdm_enable="YES"
+}
+
+############################################################ MAIN
+
+#
+# Initialize
+#
+f_dialog_title "$msg_choose_desktopenv"
+f_dialog_backtitle "$msg_freebsd_installer"
+
+#
+# Get user input
+#
+CHOOSE=$( dialog_desktopenv )
+[ $? -eq $BSDDIALOG_CANCEL ] && exit 1
+
+case "$CHOOSE" in
+	1)
+		kde_install
+		break
+		;;
+	2)
+		gnome_install
+		break
+		;;
+	3)
+		xfce_install
+		break
+		;;
+esac
+
+ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install $docsets
+################################################################################
+# END
+################################################################################
