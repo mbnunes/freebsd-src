@@ -47,17 +47,11 @@ msg_ok="OK"
 msg_please_choose_a_desktopenv="Please choose a desktop environment for this machine.\n"
 msg_choose_desktopenv="Choose a desktop environment"
 
-#
-# Command strings for various tasks
-#
-ECHO_OVERWRITE='echo "%s" > "%s"'
-SET_HOSTNAME='hostname -s "%s"'
-
 ############################################################ FUNCTIONS
 
 # dialog_desktopenv
 #
-# Display input box (without cancel button) for user to enter desired hostname.
+# Display radio list
 #
 dialog_desktopenv()
 {
