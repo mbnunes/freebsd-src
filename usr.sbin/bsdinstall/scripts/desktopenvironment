@@ -47,6 +47,8 @@ msg_ok="OK"
 msg_please_choose_a_desktopenv="Please choose a desktop environment for this machine.\n"
 msg_choose_desktopenv="Choose a desktop environment"
 
+ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT 
+
 ############################################################ FUNCTIONS
 
 # dialog_desktopenv
@@ -155,7 +157,6 @@ case "$CHOOSE" in
 		;;
 esac
 
-ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install $docsets
 ################################################################################
 # END
 ################################################################################
