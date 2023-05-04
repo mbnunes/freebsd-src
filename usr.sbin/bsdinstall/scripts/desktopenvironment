@@ -65,7 +65,7 @@ dialog_desktopenv()
 		--backtitle "$DIALOG_BACKTITLE" \
 		--hline "$hline"                \
 		--ok-label "$msg_ok"            \
-		--radiolist "$prompt" 10 40 4   \
+		--radiolist "$prompt" 15 40 4   \
 		1 "KDE Plasma" off \
 		2 "XFCE" off \
 		3 "Gnome" off 
@@ -139,7 +139,7 @@ f_dialog_backtitle "$msg_freebsd_installer"
 #
 # Get user input
 #
-CHOOSE=$( dialog_desktopenv )
+CHOOSE=$( dialog_desktopenv 3>&1 1>&2 2>&3 3>&-)
 [ $? -eq $BSDDIALOG_CANCEL ] && exit 1
 
 case "$CHOOSE" in
