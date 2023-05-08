@@ -57,20 +57,21 @@ ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT
 #
 dialog_desktopenv()
 {
-	local prompt="$msg_please_choose_a_desktopenv"
-	local hline=
+        local prompt="$msg_please_choose_a_desktopenv"
+        local hline=
 
-	bsddialog \
-		--title "$DIALOG_TITLE"         \
-		--backtitle "$DIALOG_BACKTITLE" \
-		--hline "$hline"                \
-		--ok-label "$msg_ok"            \
-		--radiolist "$prompt" 15 40 4   \
-		1 "KDE Plasma" off \
-		2 "XFCE" off \
-		3 "Gnome" off 
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+        bsddialog \
+                --title "$DIALOG_TITLE"         \
+                --backtitle "$DIALOG_BACKTITLE" \
+                --hline "$hline"                \
+                --ok-label "$msg_ok"            \
+                --radiolist "$prompt" 15 40 4   \
+                "1" "KDE Plasma" off \
+                "2" "XFCE" off \
+                "3" "Gnome" off \
+                2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 }
+
 
 ############################################################ FUNCTIONS
 
@@ -115,7 +116,7 @@ kde_install()
     pkg install -y x11/kde5 x11/sddm
     edit_rc
     edit_fstab
-    sysrc 'sddm_enable="YES"'
+    sysrc sddm_enable="YES"
 }
 
 xfce_install()
@@ -139,7 +140,7 @@ f_dialog_backtitle "$msg_freebsd_installer"
 #
 # Get user input
 #
-CHOOSE=$( dialog_desktopenv 3>&1 1>&2 2>&3 3>&-)
+CHOOSE=$( dialog_desktopenv )
 [ $? -eq $BSDDIALOG_CANCEL ] && exit 1
 
 case "$CHOOSE" in
