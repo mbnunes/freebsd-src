@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2007-2009
  * 	Swinburne University of Technology, Melbourne, Australia.
@@ -179,8 +179,6 @@ struct pkt_node {
 	}			direction;
 	/* IP version pkt_node relates to; either INP_IPV4 or INP_IPV6. */
 	uint8_t			ipver;
-	/* Hash of the pkt which triggered the log message. */
-	uint32_t		hash;
 	/* Local/foreign IP address. */
 #ifdef SIFTR_IPV6
 	uint32_t		ip_laddr[4];
@@ -207,11 +205,8 @@ struct pkt_node {
 	int			conn_state;
 	/* Max Segment Size (bytes). */
 	u_int			max_seg_size;
-	/*
-	 * Smoothed RTT stored as found in the TCP control block
-	 * in units of (TCP_RTT_SCALE*hz).
-	 */
-	int			smoothed_rtt;
+	/* Smoothed RTT (usecs). */
+	uint32_t		srtt;
 	/* Is SACK enabled? */
 	u_char			sack_enabled;
 	/* Window scaling for snd window. */
@@ -220,8 +215,8 @@ struct pkt_node {
 	u_char			rcv_scale;
 	/* TCP control block flags. */
 	u_int			flags;
-	/* Retransmit timeout length. */
-	int			rxt_length;
+	/* Retransmission timeout (usec). */
+	uint32_t		rto;
 	/* Size of the TCP send buffer in bytes. */
 	u_int			snd_buf_hiwater;
 	/* Current num bytes in the send socket buffer. */
@@ -273,7 +268,6 @@ DPCPU_DEFINE_STATIC(struct siftr_stats, ss);
 static volatile unsigned int siftr_exit_pkt_manager_thread = 0;
 static unsigned int siftr_enabled = 0;
 static unsigned int siftr_pkts_per_log = 1;
-static unsigned int siftr_generate_hashes = 0;
 static uint16_t     siftr_port_filter = 0;
 /* static unsigned int siftr_binary_log = 0; */
 static char siftr_logfile[PATH_MAX] = "/var/log/siftr.log";
@@ -312,10 +306,6 @@ SYSCTL_PROC(_net_inet_siftr, OID_AUTO, logfile,
 SYSCTL_UINT(_net_inet_siftr, OID_AUTO, ppl, CTLFLAG_RW,
     &siftr_pkts_per_log, 1,
     "number of packets between generating a log message");
-
-SYSCTL_UINT(_net_inet_siftr, OID_AUTO, genhashes, CTLFLAG_RW,
-    &siftr_generate_hashes, 0,
-    "enable packet hash generation");
 
 SYSCTL_U16(_net_inet_siftr, OID_AUTO, port_filter, CTLFLAG_RW,
     &siftr_port_filter, 0,
@@ -451,11 +441,10 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		/* Construct an IPv6 log message. */
 		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
 		    MAX_LOG_MSG_LEN,
-		    "%c,0x%08x,%zd.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:"
+		    "%c,%zd.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:"
 		    "%x:%x:%x:%x:%x,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
-		    "%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
+		    "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
-		    pkt_node->hash,
 		    pkt_node->tval.tv_sec,
 		    pkt_node->tval.tv_usec,
 		    UPPER_SHORT(pkt_node->ip_laddr[0]),
@@ -485,10 +474,10 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->rcv_scale,
 		    pkt_node->conn_state,
 		    pkt_node->max_seg_size,
-		    pkt_node->smoothed_rtt,
+		    pkt_node->srtt,
 		    pkt_node->sack_enabled,
 		    pkt_node->flags,
-		    pkt_node->rxt_length,
+		    pkt_node->rto,
 		    pkt_node->snd_buf_hiwater,
 		    pkt_node->snd_buf_cc,
 		    pkt_node->rcv_buf_hiwater,
@@ -511,10 +500,9 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		/* Construct an IPv4 log message. */
 		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
 		    MAX_LOG_MSG_LEN,
-		    "%c,0x%08x,%jd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%u,%u,"
-		    "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
+		    "%c,%jd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%u,%u,"
+		    "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
-		    pkt_node->hash,
 		    (intmax_t)pkt_node->tval.tv_sec,
 		    pkt_node->tval.tv_usec,
 		    pkt_node->ip_laddr[0],
@@ -536,10 +524,10 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->rcv_scale,
 		    pkt_node->conn_state,
 		    pkt_node->max_seg_size,
-		    pkt_node->smoothed_rtt,
+		    pkt_node->srtt,
 		    pkt_node->sack_enabled,
 		    pkt_node->flags,
-		    pkt_node->rxt_length,
+		    pkt_node->rto,
 		    pkt_node->snd_buf_hiwater,
 		    pkt_node->snd_buf_cc,
 		    pkt_node->rcv_buf_hiwater,
@@ -630,36 +618,6 @@ siftr_pkt_manager_thread(void *arg)
 
 	/* Calls wakeup on this thread's struct thread ptr. */
 	kthread_exit();
-}
-
-static uint32_t
-hash_pkt(struct mbuf *m, uint32_t offset)
-{
-	uint32_t hash;
-
-	hash = 0;
-
-	while (m != NULL && offset > m->m_len) {
-		/*
-		 * The IP packet payload does not start in this mbuf, so
-		 * need to figure out which mbuf it starts in and what offset
-		 * into the mbuf's data region the payload starts at.
-		 */
-		offset -= m->m_len;
-		m = m->m_next;
-	}
-
-	while (m != NULL) {
-		/* Ensure there is data in the mbuf */
-		if ((m->m_len - offset) > 0)
-			hash = hash32_buf(m->m_data + offset,
-			    m->m_len - offset, hash);
-
-		m = m->m_next;
-		offset = 0;
-        }
-
-	return (hash);
 }
 
 /*
@@ -785,10 +743,10 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->rcv_scale = tp->rcv_scale;
 	pn->conn_state = tp->t_state;
 	pn->max_seg_size = tp->t_maxseg;
-	pn->smoothed_rtt = tp->t_srtt;
+	pn->srtt = ((u_int64_t)tp->t_srtt * tick) >> TCP_RTT_SHIFT;
 	pn->sack_enabled = (tp->t_flags & TF_SACK_PERMIT) != 0;
 	pn->flags = tp->t_flags;
-	pn->rxt_length = tp->t_rxtcur;
+	pn->rto = tp->t_rxtcur * tick;
 	pn->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
 	pn->snd_buf_cc = sbused(&inp->inp_socket->so_snd);
 	pn->rcv_buf_hiwater = inp->inp_socket->so_rcv.sb_hiwat;
@@ -927,68 +885,6 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 	}
 
 	siftr_siftdata(pn, inp, tp, INP_IPV4, dir, inp_locally_locked);
-
-	if (siftr_generate_hashes) {
-		if ((*m)->m_pkthdr.csum_flags & CSUM_TCP) {
-			/*
-			 * For outbound packets, the TCP checksum isn't
-			 * calculated yet. This is a problem for our packet
-			 * hashing as the receiver will calc a different hash
-			 * to ours if we don't include the correct TCP checksum
-			 * in the bytes being hashed. To work around this
-			 * problem, we manually calc the TCP checksum here in
-			 * software. We unset the CSUM_TCP flag so the lower
-			 * layers don't recalc it.
-			 */
-			(*m)->m_pkthdr.csum_flags &= ~CSUM_TCP;
-
-			/*
-			 * Calculate the TCP checksum in software and assign
-			 * to correct TCP header field, which will follow the
-			 * packet mbuf down the stack. The trick here is that
-			 * tcp_output() sets th->th_sum to the checksum of the
-			 * pseudo header for us already. Because of the nature
-			 * of the checksumming algorithm, we can sum over the
-			 * entire IP payload (i.e. TCP header and data), which
-			 * will include the already calculated pseduo header
-			 * checksum, thus giving us the complete TCP checksum.
-			 *
-			 * To put it in simple terms, if checksum(1,2,3,4)=10,
-			 * then checksum(1,2,3,4,5) == checksum(10,5).
-			 * This property is what allows us to "cheat" and
-			 * checksum only the IP payload which has the TCP
-			 * th_sum field populated with the pseudo header's
-			 * checksum, and not need to futz around checksumming
-			 * pseudo header bytes and TCP header/data in one hit.
-			 * Refer to RFC 1071 for more info.
-			 *
-			 * NB: in_cksum_skip(struct mbuf *m, int len, int skip)
-			 * in_cksum_skip 2nd argument is NOT the number of
-			 * bytes to read from the mbuf at "skip" bytes offset
-			 * from the start of the mbuf (very counter intuitive!).
-			 * The number of bytes to read is calculated internally
-			 * by the function as len-skip i.e. to sum over the IP
-			 * payload (TCP header + data) bytes, it is INCORRECT
-			 * to call the function like this:
-			 * in_cksum_skip(at, ip->ip_len - offset, offset)
-			 * Rather, it should be called like this:
-			 * in_cksum_skip(at, ip->ip_len, offset)
-			 * which means read "ip->ip_len - offset" bytes from
-			 * the mbuf cluster "at" at offset "offset" bytes from
-			 * the beginning of the "at" mbuf's data pointer.
-			 */
-			th->th_sum = in_cksum_skip(*m, ntohs(ip->ip_len),
-			    ip_hl);
-		}
-
-		/*
-		 * XXX: Having to calculate the checksum in software and then
-		 * hash over all bytes is really inefficient. Would be nice to
-		 * find a way to create the hash and checksum in the same pass
-		 * over the bytes.
-		 */
-		pn->hash = hash_pkt(*m, ip_hl);
-	}
 
 	mtx_lock(&siftr_pkt_queue_mtx);
 	STAILQ_INSERT_TAIL(&pkt_queue, pn, nodes);
@@ -1270,10 +1166,9 @@ siftr_manage_ops(uint8_t action)
 
 		sbuf_printf(s,
 		    "enable_time_secs=%jd\tenable_time_usecs=%06ld\t"
-		    "siftrver=%s\thz=%u\ttcp_rtt_scale=%u\tsysname=%s\t"
-		    "sysver=%u\tipmode=%u\n",
-		    (intmax_t)tval.tv_sec, tval.tv_usec, MODVERSION_STR, hz,
-		    TCP_RTT_SCALE, SYS_NAME, __FreeBSD_version, SIFTR_IPMODE);
+		    "siftrver=%s\tsysname=%s\tsysver=%u\tipmode=%u\n",
+		    (intmax_t)tval.tv_sec, tval.tv_usec, MODVERSION_STR,
+		    SYS_NAME, __FreeBSD_version, SIFTR_IPMODE);
 
 		sbuf_finish(s);
 		alq_writen(siftr_alq, sbuf_data(s), sbuf_len(s), ALQ_WAITOK);

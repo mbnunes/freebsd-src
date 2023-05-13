@@ -29,6 +29,7 @@ SRCS=	\
 	crc16.c			\
 	ctl_util.c		\
 	ctl_scsi_all.c		\
+	e820.c			\
 	fwctl.c			\
 	gdb.c			\
 	hda_codec.c		\
@@ -110,6 +111,7 @@ LIBADD+=    netgraph
 CFLAGS+=-DNO_OPENSSL
 .else
 LIBADD+=	crypto
+CFLAGS+=-DOPENSSL_API_COMPAT=0x10100000L
 .endif
 
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/e1000
@@ -117,10 +119,6 @@ CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/mii
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/usb/controller
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 CFLAGS+= -I${SRCTOP}/contrib/libucl/include
-
-# Temporary disable capsicum, until we integrate checkpoint code with it.
-CFLAGS+= -DWITHOUT_CAPSICUM
-
 CFLAGS+= -DBHYVE_SNAPSHOT
 .endif
 

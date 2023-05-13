@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include "config.h"
 #include "inout.h"
 #include "debug.h"
+#include "e820.h"
 #include "fwctl.h"
 #include "gdb.h"
 #include "ioapic.h"
@@ -1242,6 +1243,7 @@ main(int argc, char *argv[])
 	int max_vcpus, memflags;
 	struct vcpu *bsp;
 	struct vmctx *ctx;
+	struct qemu_fwcfg_item *e820_fwcfg_item;
 	uint64_t rip;
 	size_t memsize;
 	const char *optstr, *value, *vmname;
@@ -1257,9 +1259,9 @@ main(int argc, char *argv[])
 	progname = basename(argv[0]);
 
 #ifdef BHYVE_SNAPSHOT
-	optstr = "aehuwxACDHIPSWYk:o:p:G:c:s:m:l:K:U:r:";
+	optstr = "aehuwxACDHIPSWYk:f:o:p:G:c:s:m:l:K:U:r:";
 #else
-	optstr = "aehuwxACDHIPSWYk:o:p:G:c:s:m:l:K:U:";
+	optstr = "aehuwxACDHIPSWYk:f:o:p:G:c:s:m:l:K:U:";
 #endif
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
@@ -1286,6 +1288,11 @@ main(int argc, char *argv[])
 			break;
 		case 'C':
 			set_config_bool("memory.guest_in_core", true);
+			break;
+		case 'f':
+			if (qemu_fwcfg_parse_cmdline_arg(optarg) != 0) {
+			    errx(EX_USAGE, "invalid fwcfg item '%s'", optarg);
+			}
 			break;
 		case 'G':
 			parse_gdb_options(optarg);
@@ -1486,6 +1493,11 @@ main(int argc, char *argv[])
 		exit(4);
 	}
 
+	if (e820_init(ctx) != 0) {
+		fprintf(stderr, "Unable to setup E820");
+		exit(4);
+	}
+
 	/*
 	 * Exit if a device emulation finds an error in its initilization
 	 */
@@ -1575,6 +1587,18 @@ main(int argc, char *argv[])
 		error = acpi_build(ctx, guest_ncpus);
 		assert(error == 0);
 	}
+
+	e820_fwcfg_item = e820_get_fwcfg_item();
+	if (e820_fwcfg_item == NULL) {
+	    fprintf(stderr, "invalid e820 table");
+		exit(4);
+	}
+	if (qemu_fwcfg_add_file("etc/e820", e820_fwcfg_item->size,
+		e820_fwcfg_item->data) != 0) {
+		fprintf(stderr, "could not add qemu fwcfg etc/e820");
+		exit(4);
+	}
+	free(e820_fwcfg_item);
 
 	if (lpc_bootrom() && strcmp(lpc_fwcfg(), "bhyve") == 0) {
 		fwctl_init();

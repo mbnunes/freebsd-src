@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>
  *
@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include <sys/types.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -51,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #define	DEBUG_MOD_NAME	nl_neigh
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG);
+_DECLARE_DEBUG(LOG_INFO);
 
 static int lle_families[] = { AF_INET, AF_INET6 };
 
@@ -450,6 +451,7 @@ rtnl_handle_newneigh(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 	/* XXX: We're inside epoch */
 	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_RESOLVED);
 	LLE_WUNLOCK(lle);
+	llt->llt_post_resolved(llt, lle);
 
 	return (0);
 }
@@ -478,27 +480,7 @@ rtnl_handle_delneigh(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 	if (llt == NULL)
 		return (EAFNOSUPPORT);
 
-	IF_AFDATA_WLOCK(attrs.nda_ifp);
-	struct llentry *lle = lla_lookup(llt, LLE_EXCLUSIVE, attrs.nda_dst);
-	if (lle != NULL) {
-		if ((lle->la_flags & LLE_IFADDR) != 0) {
-			LLE_WUNLOCK(lle);
-			lle = NULL;
-			error = EPERM;
-			NLMSG_REPORT_ERR_MSG(npt, "unable to delete ifaddr record");
-		} else
-			lltable_unlink_entry(llt, lle);
-	} else
-		error = ENOENT;
-	IF_AFDATA_WUNLOCK(attrs.nda_ifp);
-
-	if (error == 0 && lle != NULL)
-		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-
-	if (lle != NULL)
-		llentry_free(lle);
-
-	return (error);
+	return (lltable_delete_addr(llt, 0, attrs.nda_dst));
 }
 
 static int
@@ -538,6 +520,7 @@ static const struct rtnl_cmd_handler cmd_handlers[] = {
 		.cmd = NL_RTM_NEWNEIGH,
 		.name = "RTM_NEWNEIGH",
 		.cb = &rtnl_handle_newneigh,
+		.priv = PRIV_NET_ROUTE,
 	},
 	{
 		.cmd = NL_RTM_DELNEIGH,

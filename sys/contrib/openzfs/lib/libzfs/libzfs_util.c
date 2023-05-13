@@ -1774,6 +1774,7 @@ addlist(libzfs_handle_t *hdl, const char *propname, zprop_list_t **listp,
 	 * a user-defined property.
 	 */
 	if (prop == ZPROP_USERPROP && ((type == ZFS_TYPE_POOL &&
+	    !zfs_prop_user(propname) &&
 	    !zpool_prop_feature(propname) &&
 	    !zpool_prop_unsupported(propname)) ||
 	    ((type == ZFS_TYPE_DATASET) && !zfs_prop_user(propname) &&
@@ -1965,7 +1966,7 @@ zfs_version_print(void)
  * Return 1 if the user requested ANSI color output, and our terminal supports
  * it.  Return 0 for no color.
  */
-static int
+int
 use_color(void)
 {
 	static int use_color = -1;
