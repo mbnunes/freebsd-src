@@ -38,6 +38,7 @@ f_include $BSDCFG_SHARE/dialog.subr
 ############################################################ GLOBALS
 
 : ${BSDDIALOG_CANCEL=1}
+: ${ASSUME_ALWAYS_YES=YES}
 
 #
 # Strings that should be moved to an i18n file and loaded with f_include_lang()
@@ -46,8 +47,6 @@ msg_freebsd_installer="$OSNAME Installer"
 msg_ok="OK"
 msg_please_choose_a_desktopenv="Please choose a desktop environment for this machine.\n"
 msg_choose_desktopenv="Choose a desktop environment"
-
-ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT 
 
 ############################################################ FUNCTIONS
 
@@ -77,19 +76,17 @@ dialog_desktopenv()
 
 pkg_basic()
 {
-    pkg install -y xorg
-    pkg update
+    ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y xorg
 }
 
 edit_rc()
 {
-    # a função sysrc é mais indicada para trabalhar com o /etc/rc.conf
-    sysrc webcamd_enable="YES"
-    sysrc moused_enable="YES"
-    sysrc dbus_enable="YES"
-    sysrc hald_enable="YES"
-    sysrc sound_load="YES"
-    sysrc snd_hda_load="YES"
+    sysrc -R $BSDINSTALL_ROOT webcamd_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT moused_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT dbus_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT hald_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT sound_load="YES"
+    sysrc -R $BSDINSTALL_ROOT snd_hda_load="YES"
 }
 
 edit_fstab()
@@ -102,31 +99,31 @@ gnome_install()
 {
     echo "Starting Gnome4 Installer"
     pkg_basic
-    pkg install -y gnome gnome-desktop gdm
+    ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y gnome gnome-desktop gdm
     edit_rc
     edit_fstab
-    sysrc 'gnome_enable="YES"'
-    sysrc 'gdm_enable="YES"'
+    sysrc -R $BSDINSTALL_ROOT gnome_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT  gdm_enable="YES"
 }
 
 kde_install()
 {
     echo "Starting Kde Plasma Installer"
     pkg_basic
-    pkg install -y x11/kde5 x11/sddm
+    ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y x11/kde5 x11/sddm
     edit_rc
     edit_fstab
-    sysrc sddm_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT sddm_enable="YES"
 }
 
 xfce_install()
 {
     echo "Starting Xfce Installer"
     pkg_basic
-    pkg install -y xfce xfce4-goodies dbus lightdm lightdm-gtk-greeter 
+    ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y xfce xfce4-goodies dbus lightdm lightdm-gtk-greeter 
     edit_rc
     edit_fstab
-    sysrc lightdm_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT lightdm_enable="YES"
 }
 
 ############################################################ MAIN
@@ -148,12 +145,12 @@ case "$CHOOSE" in
 		kde_install
 		break
 		;;
-	2)
-		gnome_install
+    2)
+		xfce_install
 		break
 		;;
 	3)
-		xfce_install
+		gnome_install
 		break
 		;;
 esac
