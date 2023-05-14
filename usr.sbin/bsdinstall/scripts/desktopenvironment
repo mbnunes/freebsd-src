@@ -32,6 +32,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading_includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/packages/packages.subr
 
 ############################################################ CONFIGURATION
@@ -134,6 +135,7 @@ xfce_install()
 #
 f_dialog_title "$msg_choose_desktopenv"
 f_dialog_backtitle "$msg_freebsd_installer"
+f_mustberoot_init
 
 #
 # Get user input
