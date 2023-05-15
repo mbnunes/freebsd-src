@@ -78,17 +78,17 @@ dialog_desktopenv()
 
 pkg_basic()
 {
-    pkg install -y xorg
+    ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y xorg
 }
 
 edit_rc()
 {
-    sysrc  webcamd_enable="YES"
-    sysrc  moused_enable="YES"
-    sysrc  dbus_enable="YES"
-    sysrc  hald_enable="YES"
-    sysrc  sound_load="YES"
-    sysrc  snd_hda_load="YES"
+    sysrc -R $BSDINSTALL_ROOT webcamd_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT moused_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT dbus_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT hald_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT sound_load="YES"
+    sysrc -R $BSDINSTALL_ROOT snd_hda_load="YES"
 }
 
 edit_fstab()
@@ -101,31 +101,31 @@ gnome_install()
 {
     echo "Starting Gnome4 Installer"
     pkg_basic
-    pkg install -y gnome gnome-desktop gdm
+    ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y gnome gnome-desktop gdm
     edit_rc
     edit_fstab
-    sysrc  gnome_enable="YES"
-    sysrc   gdm_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT gnome_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT  gdm_enable="YES"
 }
 
 kde_install()
 {
     echo "Starting Kde Plasma Installer"
     pkg_basic
-    pkg install -y x11/kde5 x11/sddm
+    ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y x11/kde5 x11/sddm
     edit_rc
     edit_fstab
-    sysrc  sddm_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT sddm_enable="YES"
 }
 
 xfce_install()
 {
     echo "Starting Xfce Installer"
     pkg_basic
-    pkg install -y xfce xfce4-goodies dbus lightdm lightdm-gtk-greeter 
+    ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y xfce xfce4-goodies dbus lightdm lightdm-gtk-greeter 
     edit_rc
     edit_fstab
-    sysrc  lightdm_enable="YES"
+    sysrc -R $BSDINSTALL_ROOT lightdm_enable="YES"
 }
 
 ############################################################ MAIN
@@ -136,6 +136,9 @@ xfce_install()
 f_dialog_title "$msg_choose_desktopenv"
 f_dialog_backtitle "$msg_freebsd_installer"
 f_mustberoot_init
+
+# Let pkg_add be able to use name servers
+f_quietly cp -f $BSDINSTALL_TMPETC/resolv.conf $BSDINSTALL_CHROOT/etc/
 
 #
 # Get user input
