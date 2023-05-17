@@ -83,12 +83,12 @@ pkg_basic()
 
 edit_rc()
 {
-    sysrc -R $BSDINSTALL_ROOT webcamd_enable="YES"
-    sysrc -R $BSDINSTALL_ROOT moused_enable="YES"
-    sysrc -R $BSDINSTALL_ROOT dbus_enable="YES"
-    sysrc -R $BSDINSTALL_ROOT hald_enable="YES"
-    sysrc -R $BSDINSTALL_ROOT sound_load="YES"
-    sysrc -R $BSDINSTALL_ROOT snd_hda_load="YES"
+    sysrc webcamd_enable="YES"
+    sysrc moused_enable="YES"
+    sysrc dbus_enable="YES"
+    sysrc hald_enable="YES"
+    sysrc sound_load="YES"
+    sysrc snd_hda_load="YES"
 }
 
 edit_fstab()
@@ -104,8 +104,8 @@ gnome_install()
     ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y gnome gnome-desktop gdm
     edit_rc
     edit_fstab
-    sysrc -R $BSDINSTALL_ROOT gnome_enable="YES"
-    sysrc -R $BSDINSTALL_ROOT  gdm_enable="YES"
+    sysrc gnome_enable="YES"
+    sysrc  gdm_enable="YES"
 }
 
 kde_install()
@@ -115,7 +115,7 @@ kde_install()
     ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y x11/kde5 x11/sddm
     edit_rc
     edit_fstab
-    sysrc -R $BSDINSTALL_ROOT sddm_enable="YES"
+    sysrc sddm_enable="YES"
 }
 
 xfce_install()
@@ -125,7 +125,7 @@ xfce_install()
     ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y xfce xfce4-goodies dbus lightdm lightdm-gtk-greeter 
     edit_rc
     edit_fstab
-    sysrc -R $BSDINSTALL_ROOT lightdm_enable="YES"
+    sysrc lightdm_enable="YES"
 }
 
 ############################################################ MAIN
