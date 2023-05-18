@@ -83,12 +83,12 @@ pkg_basic()
 
 edit_rc()
 {
-    chroot $BSDINSTALL_CHROOT sysrc webcamd_enable="YES"
-    chroot $BSDINSTALL_CHROOT sysrc moused_enable="YES"
-    chroot $BSDINSTALL_CHROOT sysrc dbus_enable="YES"
-    chroot $BSDINSTALL_CHROOT sysrc hald_enable="YES"
-    chroot $BSDINSTALL_CHROOT sysrc sound_load="YES"
-    chroot $BSDINSTALL_CHROOT sysrc snd_hda_load="YES"
+    echo webcamd_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
+    echo moused_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
+    echo dbus_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
+    echo hald_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
+    echo sound_load=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
+    echo snd_hda_load=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
 }
 
 edit_fstab()
@@ -104,8 +104,8 @@ gnome_install()
     ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y gnome gnome-desktop gdm
     edit_rc
     edit_fstab
-    chroot $BSDINSTALL_CHROOT sysrc gnome_enable="YES"
-    chroot $BSDINSTALL_CHROOT sysrc gdm_enable="YES"
+    echo gnome_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
+    echo gdm_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
 }
 
 kde_install()
@@ -115,7 +115,7 @@ kde_install()
     ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y x11/kde5 x11/sddm
     edit_rc
     edit_fstab
-    chroot $BSDINSTALL_CHROOT sysrc sddm_enable="YES"
+    echo sddm_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
 }
 
 xfce_install()
@@ -125,7 +125,7 @@ xfce_install()
     ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -y xfce xfce4-goodies dbus lightdm lightdm-gtk-greeter 
     edit_rc
     edit_fstab
-    chroot $BSDINSTALL_CHROOT sysrc lightdm_enable="YES"
+    echo lightdm_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
 }
 
 ############################################################ MAIN
