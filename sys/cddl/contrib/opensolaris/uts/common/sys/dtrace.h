@@ -2427,8 +2427,18 @@ extern void dtrace_helpers_destroy(proc_t *);
 
 #endif /* _KERNEL */
 
-#if defined(__i386) || defined(__amd64) || defined (__riscv)
 extern int dtrace_instr_size(uint8_t *instr);
+
+#if defined(__i386) || defined(__amd64)
+extern int dtrace_dis_get_byte(void *p);
+#endif
+
+#if defined(__riscv)
+extern int dtrace_match_opcode(uint32_t insn, int match, int mask);
+extern int dtrace_instr_sdsp(uint32_t **instr);
+extern int dtrace_instr_ret(uint32_t **instr);
+extern int dtrace_instr_c_sdsp(uint32_t **instr);
+extern int dtrace_instr_c_ret(uint32_t **instr);
 #endif
 
 #endif	/* _ASM */
